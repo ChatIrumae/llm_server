@@ -162,6 +162,65 @@ class OllamaService:
                 "content": f"매핑 오류: {str(e)}"
             }))
     
+    async def stream_response_with_context(self, websocket: WebSocket, message: str, chroma_results: list, model: str = "llama3.2:3b", user_info: Dict[str, Any] = None) -> str:
+        """
+        RAG 결과를 포함한 통합 프롬프트로 스트리밍 응답 생성
+        """
+        try:
+            url = f"{self.base_url}/api/generate"
+            
+            # 통합 프롬프트 생성 (RAG 결과 포함)
+            integrated_prompt = ChatPrompts.build_integrated_prompt(message, chroma_results, user_info)
+            
+            payload = {
+                "model": model,
+                "prompt": integrated_prompt,
+                "stream": True,
+                "options": {
+                    "temperature": PromptConfig.INITIAL_TEMPERATURE,
+                    "top_p": PromptConfig.INITIAL_TOP_P,
+                    "max_tokens": PromptConfig.INITIAL_MAX_TOKENS
+                }
+            }
+            
+            logger.info(f"Ollama {model} 통합 스트리밍 요청 시작: {message[:50]}...")
+            
+            full_response = ""  # 전체 응답을 저장할 변수
+            
+            async with self.client.stream("POST", url, json=payload) as response:
+                response.raise_for_status()
+                
+                async for line in response.aiter_lines():
+                    if line.strip():
+                        try:
+                            data = json.loads(line)
+                            if data.get("response"):
+                                token = data["response"]
+                                full_response += token  # 전체 응답에 토큰 추가
+                                
+                                # 토큰을 실시간으로 전송
+                                await websocket.send_text(json.dumps({
+                                    "type": "token",
+                                    "content": token,
+                                    "metadata": {"model": model}
+                                }))
+                                
+                                if data.get("done", False):
+                                    break
+                        except json.JSONDecodeError:
+                            continue
+            
+            logger.info(f"Ollama {model} 통합 스트리밍 완료: {len(full_response)} 문자")
+            return full_response
+            
+        except Exception as e:
+            logger.error(f"Ollama 통합 스트리밍 중 오류: {str(e)}")
+            await websocket.send_text(json.dumps({
+                "type": "error",
+                "content": f"스트리밍 오류: {str(e)}"
+            }))
+            return ""  # 오류 시 빈 문자열 반환
+    
     async def check_model_status(self, model: str) -> Dict[str, Any]:
         """
         Ollama 모델 상태 확인

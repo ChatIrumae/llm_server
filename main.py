@@ -95,32 +95,22 @@ async def chat_endpoint(chat_request: ChatRequest):
     logger.info(f"사용자 {user_id}의 채팅 요청: {user_message}")
     
     try:
-        # 1. Chroma DB 검색을 백그라운드에서 시작 (병렬 처리)
-        chroma_task = asyncio.create_task(
-            chroma_service.search_documents(user_message)
-        )
+        # 1. Chroma DB 검색 완료 대기
+        logger.info(f"사용자 {user_id}의 RAG 검색 시작")
+        chroma_results = await chroma_service.search_documents(user_message)
+        logger.info(f"사용자 {user_id}의 RAG 검색 완료: {len(chroma_results)}개 결과")
         
-        # 2. Ollama 3B로 답변 구조 생성 (스트리밍) 및 전체 답변 저장
-        # 저장된 사용자 정보 가져오기
+        # 2. 저장된 사용자 정보 가져오기
         stored_user_info = websocket_manager.get_user_info(user_id)
-        streamed_response = await ollama_service.stream_response(
+        
+        # 3. RAG 결과를 포함한 통합 프롬프트로 응답 생성 (스트리밍)
+        streamed_response = await ollama_service.stream_response_with_context(
             websocket_manager.active_connections[user_id], 
             user_message, 
+            chroma_results,
             model="llama3.2:3b",
             user_info=stored_user_info
         )
-        
-        # 3. Chroma DB 검색 결과 대기 (이미 백그라운드에서 실행 중)
-        chroma_results = await chroma_task
-        
-        # 4. 같은 3B 모델로 플레이스홀더 매핑 (모델 재사용)
-        if chroma_results and streamed_response:
-            await ollama_service.map_placeholders(
-                websocket_manager.active_connections[user_id], 
-                streamed_response, 
-                chroma_results, 
-                model="llama3.2:3b"
-            )
         
         await websocket_manager.send_personal_message({
             "type": "complete",
