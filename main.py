@@ -8,6 +8,8 @@ from datetime import datetime
 from services.openai_service import OpenAIService
 from services.langchain_chroma_service import LangChainChromaService
 from services.websocket_manager import websocket_manager
+from services.language_service import LanguageService
+from services.location_service import LocationService
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -30,6 +32,8 @@ if not openai_api_key:
 
 openai_service = OpenAIService(api_key=openai_api_key, model=openai_model)
 chroma_service = LangChainChromaService()
+language_service = LanguageService(api_key=openai_api_key, model=openai_model)
+location_service = LocationService(api_key=openai_api_key, model=openai_model)
 
 class ChatRequest(BaseModel):
     user_id: str
@@ -103,32 +107,33 @@ async def chat_endpoint(chat_request: ChatRequest):
     logger.info(f"사용자 {user_id}의 채팅 요청: {user_message}")
     
     try:
-        # 1. Chroma DB 검색을 백그라운드에서 시작 (병렬 처리)
-        # 테스트용: mock_search_documents 사용, 실제 사용 시: search_documents 사용
-        chroma_task = asyncio.create_task(
-            # chroma_service.search_documents(user_message)
-            chroma_service.mock_search_documents(user_message)
-        )
-        
-        # 2. OpenAI GPT-4o로 답변 구조 생성 (스트리밍) 및 전체 답변 저장
         # 저장된 사용자 정보 가져오기
         stored_user_info = websocket_manager.get_user_info(user_id)
-        streamed_response = await openai_service.stream_response(
+        
+        # 1. 다국어 지원: 외국어 질의인 경우 한국어로 번역
+        language_result = await language_service.process_multilingual_query(user_message)
+        processed_message = language_result["processed_query"]
+        
+        # 번역된 경우 사용자에게 알림
+        if language_result["was_translated"]:
+            await websocket_manager.send_personal_message({
+                "type": "translation",
+                "original": language_result["original_query"],
+                "translated": language_result["translated_query"],
+                "message": f"질의가 {language_result['detected_language']}에서 한국어로 번역되었습니다."
+            }, user_id)
+        
+        # 2. Chroma DB에서 검색 (번역된 질의로)
+        chroma_results = await chroma_service.search_documents(processed_message)
+        
+        # 3. Retrieval 결과를 포함하여 OpenAI API로 질의
+        response = await openai_service.stream_response_with_context(
             websocket_manager.active_connections[user_id], 
-            user_message, 
-            user_info=stored_user_info
+            processed_message, 
+            chroma_results,
+            user_info=stored_user_info,
+            location_service=location_service
         )
-        
-        # 3. Chroma DB 검색 결과 대기 (이미 백그라운드에서 실행 중)
-        chroma_results = await chroma_task
-        
-        # 4. OpenAI GPT-4o 모델로 플레이스홀더 매핑
-        if chroma_results and streamed_response:
-            await openai_service.map_placeholders(
-                websocket_manager.active_connections[user_id], 
-                streamed_response, 
-                chroma_results
-            )
         
         await websocket_manager.send_personal_message({
             "type": "complete",
