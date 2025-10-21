@@ -70,7 +70,7 @@ class LanguageService:
         텍스트를 한국어로 번역합니다.
         """
         try:
-            logger.info(f"번역 시작: {text[:50]}...")
+            logger.info("번역 시작")
             
             response = await self.client.chat.completions.create(
                 model=self.model,
@@ -88,7 +88,7 @@ class LanguageService:
             )
             
             translated_text = response.choices[0].message.content.strip()
-            logger.info(f"번역 완료: {translated_text[:50]}...")
+            logger.info("번역 완료")
             
             return translated_text
             

@@ -33,7 +33,7 @@ class OpenAIService:
             # RAG 프롬프트 생성
             rag_prompt = ChatPrompts.build_rag_prompt(message, chroma_results, user_info)
             
-            logger.info(f"OpenAI {self.model} 통합 스트리밍 요청 시작: {message[:50]}...")
+            logger.info(f"OpenAI {self.model} 통합 스트리밍 요청 시작")
             
             full_response = ""  # 전체 응답을 저장할 변수
             

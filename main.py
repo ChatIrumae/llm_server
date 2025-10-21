@@ -104,7 +104,7 @@ async def chat_endpoint(chat_request: ChatRequest):
         await websocket_manager.send_error(user_id, "메시지가 비어있습니다.")
         raise HTTPException(status_code=400, detail="메시지가 비어있습니다.")
     
-    logger.info(f"사용자 {user_id}의 채팅 요청: {user_message}")
+    logger.info(f"사용자 {user_id}의 채팅 요청 수신")
     
     try:
         # 저장된 사용자 정보 가져오기

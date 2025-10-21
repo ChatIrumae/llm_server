@@ -119,7 +119,7 @@ class LangChainChromaService:
         문서 검색 수행 (유사도 기반)
         """
         try:
-            logger.info(f"LangChain Chroma 검색 시작: {query[:50]}...")
+            logger.info("LangChain Chroma 검색 시작")
             
             # 유사도 검색 실행
             docs = self.vectorstore.similarity_search(
@@ -158,7 +158,7 @@ class LangChainChromaService:
         테스트용 Mock 문서 검색 함수 (2초 지연 후 고정 문서 반환)
         """
         try:
-            logger.info(f"Mock Chroma 검색 시작: {query[:50]}... (2초 지연)")
+            logger.info("Mock Chroma 검색 시작 (2초 지연)")
             
             # 2초 지연 (실제 검색 시간 시뮬레이션)
             await asyncio.sleep(2)
@@ -292,7 +292,7 @@ D⁺, D⁰ 및 F등급 10%±5
         필터를 적용한 문서 검색
         """
         try:
-            logger.info(f"필터링 검색 시작: {query[:50]}... (필터: {filter_dict})")
+            logger.info(f"필터링 검색 시작 (필터: {filter_dict})")
             
             # 필터가 있는 경우
             if filter_dict:

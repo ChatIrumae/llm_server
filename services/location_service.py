@@ -28,15 +28,19 @@ class LocationService:
             "교수실", "사무실", "행정실", "학과사무실", "학생지원센터"
         ]
         
-        # 대학교 내 주요 건물/시설
+        # 대학교 내 주요 건물/시설 (환경변수에서 좌표 가져오기)
+        import os
+        default_lat = float(os.getenv("UNIVERSITY_LAT", "37.5665"))
+        default_lng = float(os.getenv("UNIVERSITY_LNG", "126.9780"))
+        
         self.university_buildings = {
-            "도서관": {"name": "중앙도서관", "address": "대학교 중앙도서관", "coordinates": {"lat": 37.5665, "lng": 126.9780}},
-            "기숙사": {"name": "학생기숙사", "address": "대학교 학생기숙사", "coordinates": {"lat": 37.5675, "lng": 126.9790}},
-            "학생회관": {"name": "학생회관", "address": "대학교 학생회관", "coordinates": {"lat": 37.5655, "lng": 126.9770}},
-            "체육관": {"name": "체육관", "address": "대학교 체육관", "coordinates": {"lat": 37.5645, "lng": 126.9760}},
-            "식당": {"name": "학생식당", "address": "대학교 학생식당", "coordinates": {"lat": 37.5685, "lng": 126.9800}},
-            "행정실": {"name": "본관 행정실", "address": "대학교 본관", "coordinates": {"lat": 37.5660, "lng": 126.9785}},
-            "강의실": {"name": "강의동", "address": "대학교 강의동", "coordinates": {"lat": 37.5650, "lng": 126.9775}}
+            "도서관": {"name": "중앙도서관", "address": "대학교 중앙도서관", "coordinates": {"lat": default_lat, "lng": default_lng}},
+            "기숙사": {"name": "학생기숙사", "address": "대학교 학생기숙사", "coordinates": {"lat": default_lat + 0.001, "lng": default_lng + 0.001}},
+            "학생회관": {"name": "학생회관", "address": "대학교 학생회관", "coordinates": {"lat": default_lat - 0.001, "lng": default_lng - 0.001}},
+            "체육관": {"name": "체육관", "address": "대학교 체육관", "coordinates": {"lat": default_lat - 0.002, "lng": default_lng - 0.002}},
+            "식당": {"name": "학생식당", "address": "대학교 학생식당", "coordinates": {"lat": default_lat + 0.002, "lng": default_lng + 0.002}},
+            "행정실": {"name": "본관 행정실", "address": "대학교 본관", "coordinates": {"lat": default_lat - 0.0005, "lng": default_lng + 0.0005}},
+            "강의실": {"name": "강의동", "address": "대학교 강의동", "coordinates": {"lat": default_lat - 0.0015, "lng": default_lng - 0.0005}}
         }
     
     async def detect_location_mention(self, text: str) -> bool:
@@ -127,7 +131,7 @@ class LocationService:
                         "building": building_name,
                         "name": building_name,
                         "address": f"대학교 {building_name}",
-                        "coordinates": {"lat": 37.5665, "lng": 126.9780},  # 기본 좌표
+                        "coordinates": {"lat": self.university_buildings["도서관"]["coordinates"]["lat"], "lng": self.university_buildings["도서관"]["coordinates"]["lng"]},  # 기본 좌표
                         "type": "general_location",
                         "description": result.get("description", "")
                     }
