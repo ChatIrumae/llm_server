@@ -59,29 +59,42 @@ class ChatPrompts:
 """
     
     @staticmethod
-    def build_integrated_prompt(message: str, chroma_results: List[Dict[str, Any]]) -> str:
+    def build_integrated_prompt(message: str, chroma_results: List[Dict[str, Any]], user_info: Dict[str, Any] = None) -> str:
         """
         통합 답변 생성을 위한 프롬프트 (Chroma 결과 포함)
         """
         # Chroma DB 결과를 텍스트로 변환
         context_text = ChatPrompts._format_chroma_results(chroma_results)
         
+        # 사용자 정보 추가
+        user_context = ""
+        if user_info:
+            user_context = f"""
+사용자 정보:
+- 학과: {user_info.get('major', '정보 없음')}
+- 학년: {user_info.get('grade', '정보 없음')}
+- 학생 유형: {user_info.get('student_type', '정보 없음')}
+- 기타: {user_info.get('additional_info', '정보 없음')}
+
+"""
+        
         no_info_msg = PromptConfig.NO_INFO_MESSAGE
         
         return f"""
 당신은 대학교 학사 관련 질의를 처리하는 AI 어시스턴트입니다.
 
-사용자 질문: {message}
+{user_context}사용자 질문: {message}
 
 관련 문서 정보:
 {context_text}
 
-위 관련 문서 정보를 바탕으로 사용자 질문에 대한 정확하고 구체적인 답변을 제공해주세요.
+위 관련 문서 정보와 사용자 정보를 바탕으로 사용자 질문에 대한 정확하고 구체적인 답변을 제공해주세요.
 답변 시 다음 사항을 준수해주세요:
 - 관련 문서의 구체적인 수치와 조건을 정확히 포함
 - 명확하고 이해하기 쉬운 구조로 답변 제공
 - 관련 문서에 정보가 없다면 "{no_info_msg}"라고 표시
 - 대학교 학사 규정에 맞는 정확한 정보 제공
+- 사용자 정보를 고려한 맞춤형 답변 제공
 """
     
     @staticmethod

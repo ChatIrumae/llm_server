@@ -6,17 +6,17 @@
 
 ### 핵심 구성요소
 - **LangChain 서버**: FastAPI 기반의 메인 서버
-- **Ollama 3B**: Llama 3.2 3B 모델 (구조화된 답변 생성)
-- **Ollama 1B**: Llama 3.2 1B 모델 (플레이스홀더 매핑)
+- **OpenAI GPT-5**: GPT-5 모델 (구조화된 답변 생성 및 플레이스홀더 매핑)
 - **Chroma DB**: 벡터 데이터베이스 (문서 검색)
+- **OpenAI Embeddings**: text-embedding-3-small 모델 (벡터 임베딩)
 
 ### 워크플로우
 1. 사용자 질의 수신
 2. 동시 처리:
-   - Ollama 3B: 구조화된 답변 생성 (플레이스홀더 포함)
+   - OpenAI GPT-5: 구조화된 답변 생성 (플레이스홀더 포함)
    - Chroma DB: 관련 문서 검색
 3. 스트리밍으로 답변 전송
-4. Ollama 1B: 플레이스홀더를 실제 값으로 매핑
+4. OpenAI GPT-5: 플레이스홀더를 실제 값으로 매핑
 5. 최종 답변 완성 및 전송
 
 ## 🚀 빠른 시작
@@ -41,11 +41,11 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
-### 3. Ollama 모델 설치
+### 3. OpenAI API 키 설정
 ```bash
-# 모델 설치 스크립트 실행
-chmod +x scripts/setup_models.sh
-./scripts/setup_models.sh
+# .env 파일에서 OpenAI API 키 설정
+OPENAI_API_KEY=your-openai-api-key-here
+OPENAI_MODEL=gpt-5
 ```
 
 ### 4. Chroma DB 초기화
@@ -97,9 +97,8 @@ python main.py
 ```
 
 ### 필요한 외부 서비스
-- Ollama 3B 서버: `http://ollama-3b:11434`
-- Ollama 1B 서버: `http://ollama-1b:11434`
-- Chroma DB: `http://chroma:8000`
+- OpenAI API: `https://api.openai.com/v1`
+- Chroma DB: 로컬 파일 시스템 기반
 
 ## 📁 프로젝트 구조
 
@@ -115,11 +114,10 @@ chatirumae/
 │   └── chat_models.py     # 데이터 모델 정의
 ├── services/
 │   ├── __init__.py
-│   ├── ollama_service.py  # Ollama API 서비스
-│   ├── chroma_service.py  # Chroma DB 서비스
-│   └── response_processor.py # 응답 처리 로직
+│   ├── openai_service.py  # OpenAI API 서비스
+│   ├── langchain_chroma_service.py  # LangChain Chroma 서비스
+│   └── websocket_manager.py # WebSocket 연결 관리
 └── scripts/
-    ├── setup_models.sh    # 모델 설치 스크립트
     └── init_chroma.py     # Chroma DB 초기화
 ```
 
@@ -146,28 +144,28 @@ chatirumae/
 ### 환경 변수
 - `LANGCHAIN_HOST`: 서버 호스트 (기본값: 0.0.0.0)
 - `LANGCHAIN_PORT`: 서버 포트 (기본값: 80)
-- `OLLAMA_3B_URL`: Ollama 3B 서버 URL
-- `OLLAMA_1B_URL`: Ollama 1B 서버 URL
+- `OPENAI_API_KEY`: OpenAI API 키 (필수)
+- `OPENAI_MODEL`: OpenAI 모델명 (기본값: gpt-5)
 - `CHROMA_HOST`: Chroma DB 호스트
 - `CHROMA_PORT`: Chroma DB 포트
 
 ### 모델 설정
-- 3B 모델: 구조화된 답변 생성용
-- 1B 모델: 플레이스홀더 매핑용
-- GPU 가속 지원 (NVIDIA Docker 필요)
+- GPT-5: 구조화된 답변 생성 및 플레이스홀더 매핑
+- text-embedding-3-small: 벡터 임베딩용
+- OpenAI API 기반 클라우드 서비스
 
 ## 🐛 문제 해결
 
 ### 일반적인 문제들
 
-1. **Ollama 모델이 로드되지 않는 경우**
+1. **OpenAI API 연결 실패**
    ```bash
-   # 모델 상태 확인
-   docker exec ollama-3b ollama list
-   docker exec ollama-1b ollama list
+   # API 키 확인
+   echo $OPENAI_API_KEY
    
-   # 모델 재설치
-   ./scripts/setup_models.sh
+   # API 키 테스트
+   curl -H "Authorization: Bearer $OPENAI_API_KEY" \
+        https://api.openai.com/v1/models
    ```
 
 2. **Chroma DB 연결 실패**
@@ -190,10 +188,7 @@ chatirumae/
 ### 로그 확인
 ```bash
 # 특정 서비스 로그 확인
-docker-compose logs -f langchain-server
-docker-compose logs -f ollama-3b
-docker-compose logs -f ollama-1b
-docker-compose logs -f chroma
+docker-compose logs -f irumae-llm-server
 ```
 
 ## 🤝 기여하기

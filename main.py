@@ -5,7 +5,7 @@ import json
 import logging
 from datetime import datetime
 
-from services.ollama_service import OllamaService
+from services.openai_service import OpenAIService
 from services.langchain_chroma_service import LangChainChromaService
 from services.websocket_manager import websocket_manager
 
@@ -20,7 +20,15 @@ app = FastAPI(
 )
 
 
-ollama_service = OllamaService()
+# OpenAI API 키 및 모델 설정 (환경변수에서 가져오기)
+import os
+openai_api_key = os.getenv("OPENAI_API_KEY")
+openai_model = os.getenv("OPENAI_MODEL", "gpt-5")
+
+if not openai_api_key:
+    raise ValueError("OPENAI_API_KEY 환경변수가 설정되지 않았습니다.")
+
+openai_service = OpenAIService(api_key=openai_api_key, model=openai_model)
 chroma_service = LangChainChromaService()
 
 class ChatRequest(BaseModel):
@@ -96,30 +104,30 @@ async def chat_endpoint(chat_request: ChatRequest):
     
     try:
         # 1. Chroma DB 검색을 백그라운드에서 시작 (병렬 처리)
+        # 테스트용: mock_search_documents 사용, 실제 사용 시: search_documents 사용
         chroma_task = asyncio.create_task(
-            chroma_service.search_documents(user_message)
+            # chroma_service.search_documents(user_message)
+            chroma_service.mock_search_documents(user_message)
         )
         
-        # 2. Ollama 3B로 답변 구조 생성 (스트리밍) 및 전체 답변 저장
+        # 2. OpenAI GPT-4o로 답변 구조 생성 (스트리밍) 및 전체 답변 저장
         # 저장된 사용자 정보 가져오기
         stored_user_info = websocket_manager.get_user_info(user_id)
-        streamed_response = await ollama_service.stream_response(
+        streamed_response = await openai_service.stream_response(
             websocket_manager.active_connections[user_id], 
             user_message, 
-            model="llama3.2:3b",
             user_info=stored_user_info
         )
         
         # 3. Chroma DB 검색 결과 대기 (이미 백그라운드에서 실행 중)
         chroma_results = await chroma_task
         
-        # 4. 같은 3B 모델로 플레이스홀더 매핑 (모델 재사용)
+        # 4. OpenAI GPT-4o 모델로 플레이스홀더 매핑
         if chroma_results and streamed_response:
-            await ollama_service.map_placeholders(
+            await openai_service.map_placeholders(
                 websocket_manager.active_connections[user_id], 
                 streamed_response, 
-                chroma_results, 
-                model="llama3.2:3b"
+                chroma_results
             )
         
         await websocket_manager.send_personal_message({
