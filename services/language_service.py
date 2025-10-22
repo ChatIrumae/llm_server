@@ -24,30 +24,19 @@ class LanguageService:
     def __init__(self, api_key: str = None, model: str = "gpt-4"):
         self.model = model
         self.client = openai.AsyncOpenAI(api_key=api_key)
+
+    async def translate_to_korean(self, text: str) -> str:
+        if self._is_korean(text):
+            return text
+        else:
+            return await self._translate_to_korean(text)
     
-    def is_korean(self, text: str, threshold: float = 0.5) -> bool:
+    def _is_korean(self, text: str, threshold: float = 0.5) -> bool:
         korean_chars = sum('가' <= ch <= '힣' or 'ㄱ' <= ch <= 'ㅎ' or 'ㅏ' <= ch <= 'ㅣ' for ch in text)
         ratio = korean_chars / max(len(text), 1)
         return ratio >= threshold
-    
-    async def detect_language(self, text: str) -> str:
-        """
-        텍스트의 언어를 감지합니다.
-        한국어가 포함되어 있으면 'ko', 그 외는 'other' 반환
-        """
-        try:
-            # is_korean 함수를 사용하여 한국어 감지
-            if self.is_korean(text):
-                return 'ko'
-            else:
-                return 'other'
-                
-        except Exception as e:
-            logger.error(f"언어 감지 중 오류: {str(e)}")
-            # 오류 시 기본값으로 'other' 반환
-            return 'other'
 
-    async def translate_to_korean(self, text: str) -> str:
+    async def _translate_to_korean(self, text: str) -> str:
         try:
             logger.info("DeepL 번역 시작")
             
