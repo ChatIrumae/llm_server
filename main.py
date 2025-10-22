@@ -111,17 +111,7 @@ async def chat_endpoint(chat_request: ChatRequest):
         stored_user_info = websocket_manager.get_user_info(user_id)
         
         # 1. 다국어 지원: 외국어 질의인 경우 한국어로 번역
-        language_result = await language_service.process_multilingual_query(user_message)
-        processed_message = language_result["processed_query"]
-        
-        # 번역된 경우 사용자에게 알림
-        if language_result["was_translated"]:
-            await websocket_manager.send_personal_message({
-                "type": "translation",
-                "original": language_result["original_query"],
-                "translated": language_result["translated_query"],
-                "message": f"질의가 {language_result['detected_language']}에서 한국어로 번역되었습니다."
-            }, user_id)
+        processed_message = await language_service.translate_to_korean(user_message)
         
         # 2. Chroma DB에서 검색 (번역된 질의로)
         chroma_results = await chroma_service.search_documents(processed_message)
